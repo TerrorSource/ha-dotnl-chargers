@@ -128,9 +128,9 @@ actions:
 
 **4. Laadcheck bij aankomst**
 
-Als je met een lage accu in de buurt van huis komt, hoor je of je
+Als je met een lage accu naar huis rijdt en in de buurt komt, hoor je of je
 voorkeurslaadpaal bezet is en welke alternatieven vrij zijn. Hiervoor heb je
-een afstandssensor van de integratie
+de afstands- en rijrichtingsensor van de integratie
 [Proximity](https://www.home-assistant.io/integrations/proximity/) nodig en
 een accusensor van je auto.
 
@@ -143,6 +143,9 @@ conditions:
   - condition: numeric_state
     entity_id: sensor.auto_accuniveau
     below: 50
+  - condition: state
+    entity_id: sensor.thuis_dichtstbijzijnde_reisrichting
+    state: towards
 actions:
   - variables:
       voorkeur:

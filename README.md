@@ -125,9 +125,9 @@ actions:
 
 **4. Charging check on arrival**
 
-When you get close to home with a low battery, tells you whether your
-preferred charge point is occupied and which alternatives are free. It needs a
-distance sensor from the
+When you drive towards home with a low battery and get close, tells you whether your
+preferred charge point is occupied and which alternatives are free. It needs the
+distance and direction-of-travel sensors of the
 [Proximity](https://www.home-assistant.io/integrations/proximity/) integration
 and a battery sensor of your car.
 
@@ -140,6 +140,9 @@ conditions:
   - condition: numeric_state
     entity_id: sensor.car_battery_level
     below: 50
+  - condition: state
+    entity_id: sensor.home_nearest_direction_of_travel
+    state: towards
 actions:
   - variables:
       preferred:
