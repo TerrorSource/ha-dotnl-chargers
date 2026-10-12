@@ -125,3 +125,86 @@ actions:
       title: Schiekade 988
       message: Aansluiting 1 is vrij.
 ```
+
+**4. Laadcheck bij aankomst**
+
+Als je met een lage accu in de buurt van huis komt, hoor je of je
+voorkeurslaadpaal bezet is en welke alternatieven vrij zijn. Hiervoor heb je
+een afstandssensor van de integratie
+[Proximity](https://www.home-assistant.io/integrations/proximity/) nodig en
+een accusensor van je auto.
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.thuis_dichtstbijzijnde_afstand
+    below: 2500
+conditions:
+  - condition: numeric_state
+    entity_id: sensor.auto_accuniveau
+    below: 50
+actions:
+  - variables:
+      voorkeur:
+        - binary_sensor.schiekade_988_beschikbaar
+      alternatieven:
+        - binary_sensor.schiekade_730_beschikbaar
+        - binary_sensor.schiekade_522_beschikbaar
+      vrij: >-
+        {{ alternatieven | select('is_state', 'on')
+           | map('device_attr', 'name') | list }}
+  - if: "{{ voorkeur | select('is_state', 'on') | list | count == 0 }}"
+    then:
+      - action: notify.mobile_app_mijn_telefoon
+        data:
+          title: Voorkeurslaadpaal bezet
+          message: >-
+            {{ 'Vrije alternatieven: ' ~ vrij | join(', ') if vrij
+               else 'Alle laadpalen zijn bezet.' }}
+```
+
+**5. Wachten op een plek**
+
+Maak een schakelaar-helper aan (**Instellingen → Apparaten & diensten →
+Helpers → Helper aanmaken → Schakelaar**) met de naam *Wacht op laadpaal*. Zet
+hem aan als alles bezet is: je krijgt één melding zodra een van de laadpalen
+vrij is, en de schakelaar gaat weer uit.
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id:
+      - binary_sensor.schiekade_988_beschikbaar
+      - binary_sensor.schiekade_730_beschikbaar
+    from: "off"
+    to: "on"
+conditions:
+  - condition: state
+    entity_id: input_boolean.wacht_op_laadpaal
+    state: "on"
+actions:
+  - action: notify.mobile_app_mijn_telefoon
+    data:
+      title: Laadpaal beschikbaar
+      message: "{{ device_attr(trigger.entity_id, 'name') }} is vrij."
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wacht_op_laadpaal
+```
+
+Optionele dashboardtegel voor de schakelaar, die alleen zichtbaar is zolang
+alle laadpalen bezet zijn:
+
+```yaml
+type: tile
+entity: input_boolean.wacht_op_laadpaal
+tap_action:
+  action: toggle
+visibility:
+  - condition: state
+    entity: binary_sensor.schiekade_988_beschikbaar
+    state: "off"
+  - condition: state
+    entity: binary_sensor.schiekade_730_beschikbaar
+    state: "off"
+```

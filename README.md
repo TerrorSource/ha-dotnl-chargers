@@ -122,3 +122,86 @@ actions:
       title: Schiekade 988
       message: Socket 1 is free.
 ```
+
+**4. Charging check on arrival**
+
+When you get close to home with a low battery, tells you whether your
+preferred charge point is occupied and which alternatives are free. It needs a
+distance sensor from the
+[Proximity](https://www.home-assistant.io/integrations/proximity/) integration
+and a battery sensor of your car.
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.home_nearest_distance
+    below: 2500
+conditions:
+  - condition: numeric_state
+    entity_id: sensor.car_battery_level
+    below: 50
+actions:
+  - variables:
+      preferred:
+        - binary_sensor.schiekade_988_available
+      alternatives:
+        - binary_sensor.schiekade_730_available
+        - binary_sensor.schiekade_522_available
+      free: >-
+        {{ alternatives | select('is_state', 'on')
+           | map('device_attr', 'name') | list }}
+  - if: "{{ preferred | select('is_state', 'on') | list | count == 0 }}"
+    then:
+      - action: notify.mobile_app_my_phone
+        data:
+          title: Preferred charge point occupied
+          message: >-
+            {{ 'Free alternatives: ' ~ free | join(', ') if free
+               else 'All charge points are occupied.' }}
+```
+
+**5. Waiting for a spot**
+
+Create a toggle helper (**Settings → Devices & services → Helpers → Create
+helper → Toggle**) named *Wait for charge point*. Switch it on when everything
+is occupied: you get one notification as soon as one of the charge points is
+free, and the toggle switches off again.
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id:
+      - binary_sensor.schiekade_988_available
+      - binary_sensor.schiekade_730_available
+    from: "off"
+    to: "on"
+conditions:
+  - condition: state
+    entity_id: input_boolean.wait_for_charge_point
+    state: "on"
+actions:
+  - action: notify.mobile_app_my_phone
+    data:
+      title: Charge point available
+      message: "{{ device_attr(trigger.entity_id, 'name') }} is free."
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wait_for_charge_point
+```
+
+Optional dashboard tile for the toggle that only shows while all charge points
+are occupied:
+
+```yaml
+type: tile
+entity: input_boolean.wait_for_charge_point
+tap_action:
+  action: toggle
+visibility:
+  - condition: state
+    entity: binary_sensor.schiekade_988_available
+    state: "off"
+  - condition: state
+    entity: binary_sensor.schiekade_730_available
+    state: "off"
+```
