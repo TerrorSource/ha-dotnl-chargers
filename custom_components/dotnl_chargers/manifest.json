@@ -1,0 +1,12 @@
+{
+  "domain": "dotnl_chargers",
+  "name": "DOT-NL Chargers",
+  "codeowners": ["@TerrorSource"],
+  "config_flow": true,
+  "documentation": "https://github.com/TerrorSource/ha-dotnl-chargers",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/TerrorSource/ha-dotnl-chargers/issues",
+  "requirements": [],
+  "version": "0.2.2"
+}

@@ -1,0 +1,86 @@
+blueprint:
+  name: Charge point available notification
+  description: >-
+    Send a notification to your phone when a charge point followed with the
+    DOT-NL Chargers integration becomes available.
+
+
+    Optionally pick a toggle helper to make it a one-shot: the notification is
+    only sent while the toggle is on, and the toggle is switched off again
+    after notifying. Turn it on when you find the charge point occupied.
+  domain: automation
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    charger:
+      name: Charge point
+      description: The "Available" binary sensor of the charge point.
+      selector:
+        entity:
+          filter:
+            - integration: dotnl_chargers
+              domain: binary_sensor
+    notify_device:
+      name: Device to notify
+      description: A phone or tablet running the Home Assistant Companion app.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    title:
+      name: Title
+      default: Charge point available
+      selector:
+        text:
+    message:
+      name: Message
+      default: "{{ device_attr(trigger.entity_id, 'name') }} is available again."
+      selector:
+        text:
+          multiline: true
+    armed_helper:
+      name: Only notify while this toggle is on (optional)
+      description: >-
+        Toggle helper (input_boolean) that arms the notification. It is turned
+        off after the notification is sent.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+    extra_actions:
+      name: Extra actions (optional)
+      description: Actions to run after the notification is sent.
+      default: []
+      selector:
+        action:
+
+mode: single
+
+variables:
+  armed_helper: !input armed_helper
+
+triggers:
+  - trigger: state
+    entity_id: !input charger
+    from: "off"
+    to: "on"
+
+conditions:
+  - condition: template
+    value_template: "{{ not armed_helper or is_state(armed_helper, 'on') }}"
+
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: !input title
+    message: !input message
+  - if:
+      - condition: template
+        value_template: "{{ armed_helper != '' }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ armed_helper }}"
+  - sequence: !input extra_actions

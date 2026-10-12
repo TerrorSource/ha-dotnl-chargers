@@ -1,0 +1,28 @@
+name: Release
+
+# Publishes a GitHub release whenever the version in manifest.json changes, so
+# HACS shows the update with its version number.
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/dotnl_chargers/manifest.json
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create release for a new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="v$(jq -r .version custom_components/dotnl_chargers/manifest.json)"
+          if gh release view "$version" > /dev/null 2>&1; then
+            echo "Release $version already exists"
+            exit 0
+          fi
+          gh release create "$version" --title "$version" --generate-notes

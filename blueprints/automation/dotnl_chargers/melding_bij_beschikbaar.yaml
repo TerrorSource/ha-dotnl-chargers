@@ -1,0 +1,87 @@
+blueprint:
+  name: Melding laadpaal beschikbaar
+  description: >-
+    Stuur een melding naar je telefoon zodra een laadpaal die je volgt met de
+    DOT-NL Chargers-integratie beschikbaar komt.
+
+
+    Kies optioneel een schakelaar-helper om de melding eenmalig te maken: de
+    melding wordt alleen verstuurd als de schakelaar aan staat, en de
+    schakelaar gaat daarna weer uit. Zet hem aan als je de laadpaal bezet
+    aantreft.
+  domain: automation
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    charger:
+      name: Laadpaal
+      description: De binaire sensor "Beschikbaar" van de laadpaal.
+      selector:
+        entity:
+          filter:
+            - integration: dotnl_chargers
+              domain: binary_sensor
+    notify_device:
+      name: Apparaat voor de melding
+      description: Een telefoon of tablet met de Home Assistant Companion-app.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    title:
+      name: Titel
+      default: Laadpaal beschikbaar
+      selector:
+        text:
+    message:
+      name: Bericht
+      default: "{{ device_attr(trigger.entity_id, 'name') }} is weer beschikbaar."
+      selector:
+        text:
+          multiline: true
+    armed_helper:
+      name: Alleen melden als deze schakelaar aan staat (optioneel)
+      description: >-
+        Schakelaar-helper (input_boolean) die de melding activeert. Hij wordt
+        uitgezet nadat de melding is verstuurd.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+    extra_actions:
+      name: Extra acties (optioneel)
+      description: Acties die worden uitgevoerd nadat de melding is verstuurd.
+      default: []
+      selector:
+        action:
+
+mode: single
+
+variables:
+  armed_helper: !input armed_helper
+
+triggers:
+  - trigger: state
+    entity_id: !input charger
+    from: "off"
+    to: "on"
+
+conditions:
+  - condition: template
+    value_template: "{{ not armed_helper or is_state(armed_helper, 'on') }}"
+
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: !input title
+    message: !input message
+  - if:
+      - condition: template
+        value_template: "{{ armed_helper != '' }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: "{{ armed_helper }}"
+  - sequence: !input extra_actions

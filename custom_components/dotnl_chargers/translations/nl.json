@@ -1,0 +1,122 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Laadpaal toevoegen",
+        "description": "Hoe wil je de laadpaal zoeken?",
+        "menu_options": {
+          "id": "Laadpaal-ID invullen",
+          "map": "Zoeken op de kaart"
+        }
+      },
+      "id": {
+        "title": "Laadpaal-ID",
+        "description": "Vul het EVSE-ID van de laadpaal in, zoals het op de paal staat of in je laad-app wordt getoond, bijvoorbeeld `NL*TNM*EGL31*1*1049*07*1`. Leestekens en hoofdletters maken niet uit en het nummer van de aansluiting aan het eind mag je weglaten. Een DOT-NL locatie-ID zoals `NL-TNM-231` werkt ook.\n\nHet opzoeken doorzoekt de landelijke dataset en kan tot een minuut duren.",
+        "data": {
+          "charge_point_id": "EVSE-ID of locatie-ID"
+        }
+      },
+      "map": {
+        "title": "Zoek een laadpaal",
+        "description": "Zet de marker op de plek waar de laadpaal staat en pas de cirkel aan. In de volgende stap zie je alle openbare laadpalen in dat gebied (de zoekstraal is maximaal 2 km).",
+        "data": {
+          "location": "Zoekgebied"
+        }
+      },
+      "select": {
+        "title": "Kies een laadpaal",
+        "description": "Voeg de integratie nogmaals toe om meer laadpalen te volgen.",
+        "data": {
+          "charge_point": "Laadpaal",
+          "name": "Naam (optioneel)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "De DOT-NL API is niet bereikbaar. Probeer het later opnieuw.",
+      "no_charge_points": "Geen nieuwe laadpalen gevonden in dit gebied. Verplaats de marker of vergroot de cirkel.",
+      "invalid_id": "Vul minimaal 8 letters of cijfers van het ID in.",
+      "id_not_found": "Er is geen openbare laadpaal met dit ID gevonden in de DOT-NL dataset. Controleer het ID of zoek op de kaart."
+    },
+    "abort": {
+      "already_configured": "Deze laadpaal is al ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opties",
+        "description": "Hoe vaak de beschikbaarheid bij DOT-NL wordt opgehaald.",
+        "data": {
+          "scan_interval": "Verversinterval"
+        },
+        "data_description": {
+          "scan_interval": "In seconden, tussen 30 en 3600."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "available": {
+        "name": "Beschikbaar",
+        "state_attributes": {
+          "available": {
+            "name": "Vrije aansluitingen"
+          },
+          "total": {
+            "name": "Totaal aansluitingen"
+          }
+        }
+      },
+      "socket": {
+        "name": "Aansluiting {number}",
+        "state_attributes": {
+          "evse_id": {
+            "name": "EVSE-ID"
+          },
+          "connector_type": {
+            "name": "Type aansluiting"
+          },
+          "max_power_kw": {
+            "name": "Max. vermogen (kW)"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "available_connectors": {
+        "name": "Vrije aansluitingen",
+        "state_attributes": {
+          "total": {
+            "name": "Totaal aansluitingen"
+          },
+          "address": {
+            "name": "Adres"
+          },
+          "operator": {
+            "name": "Exploitant"
+          },
+          "owner": {
+            "name": "Eigenaar"
+          },
+          "max_power_kw": {
+            "name": "Max. vermogen (kW)"
+          },
+          "connectors": {
+            "name": "Aansluitingen"
+          },
+          "charge_point_id": {
+            "name": "Laadpaal-ID"
+          }
+        }
+      },
+      "total_connectors": {
+        "name": "Totaal aansluitingen"
+      },
+      "last_updated": {
+        "name": "Laatst bijgewerkt"
+      }
+    }
+  }
+}

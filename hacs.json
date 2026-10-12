@@ -1,0 +1,6 @@
+{
+  "name": "DOT-NL Chargers",
+  "render_readme": true,
+  "country": "NL",
+  "homeassistant": "2025.1.0"
+}

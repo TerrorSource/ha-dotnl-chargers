@@ -1,0 +1,122 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a charge point",
+        "description": "How do you want to find the charge point?",
+        "menu_options": {
+          "id": "Enter the charge point ID",
+          "map": "Search on the map"
+        }
+      },
+      "id": {
+        "title": "Charge point ID",
+        "description": "Enter the EVSE ID of the charge point, as printed on the charger or shown in your charging app, for example `NL*TNM*EGL31*1*1049*07*1`. Punctuation and case do not matter and the socket number at the end may be left out. A DOT-NL location ID such as `NL-TNM-231` works too.\n\nThe lookup searches the national dataset and can take up to a minute.",
+        "data": {
+          "charge_point_id": "EVSE ID or location ID"
+        }
+      },
+      "map": {
+        "title": "Find a charge point",
+        "description": "Move the marker to the area where the charge point is and adjust the circle. All public charge points in that area are listed in the next step (search radius is capped at 2 km).",
+        "data": {
+          "location": "Search area"
+        }
+      },
+      "select": {
+        "title": "Choose a charge point",
+        "description": "Add the integration again to follow more charge points.",
+        "data": {
+          "charge_point": "Charge point",
+          "name": "Name (optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the DOT-NL API. Try again later.",
+      "no_charge_points": "No new charge points found in this area. Move the marker or enlarge the circle.",
+      "invalid_id": "Enter at least 8 letters or digits of the ID.",
+      "id_not_found": "No public charge point with this ID was found in the DOT-NL dataset. Check the ID or search on the map instead."
+    },
+    "abort": {
+      "already_configured": "This charge point is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "How often the availability is fetched from DOT-NL.",
+        "data": {
+          "scan_interval": "Update interval"
+        },
+        "data_description": {
+          "scan_interval": "In seconds, between 30 and 3600."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "available": {
+        "name": "Available",
+        "state_attributes": {
+          "available": {
+            "name": "Available connectors"
+          },
+          "total": {
+            "name": "Total connectors"
+          }
+        }
+      },
+      "socket": {
+        "name": "Socket {number}",
+        "state_attributes": {
+          "evse_id": {
+            "name": "EVSE ID"
+          },
+          "connector_type": {
+            "name": "Connector type"
+          },
+          "max_power_kw": {
+            "name": "Max power (kW)"
+          }
+        }
+      }
+    },
+    "sensor": {
+      "available_connectors": {
+        "name": "Available connectors",
+        "state_attributes": {
+          "total": {
+            "name": "Total connectors"
+          },
+          "address": {
+            "name": "Address"
+          },
+          "operator": {
+            "name": "Operator"
+          },
+          "owner": {
+            "name": "Owner"
+          },
+          "max_power_kw": {
+            "name": "Max power (kW)"
+          },
+          "connectors": {
+            "name": "Connectors"
+          },
+          "charge_point_id": {
+            "name": "Charge point ID"
+          }
+        }
+      },
+      "total_connectors": {
+        "name": "Total connectors"
+      },
+      "last_updated": {
+        "name": "Last updated"
+      }
+    }
+  }
+}
