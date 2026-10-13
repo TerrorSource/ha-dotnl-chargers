@@ -38,3 +38,7 @@ MIN_LOOKUP_LENGTH = 8
 # How often a per-socket lookup is repeated when the national dataset has not
 # caught up with the availability reported by the API yet.
 MAX_EVSE_RETRIES = 5
+
+# A failed poll keeps the last known data this long before entities become
+# unavailable; DOT-NL occasionally fails a single request.
+STALE_AFTER = timedelta(minutes=10)

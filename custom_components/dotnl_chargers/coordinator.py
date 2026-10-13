@@ -11,6 +11,7 @@ from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import ChargePoint, DotNLClient, DotNLError, Evse
 from .const import (
@@ -22,6 +23,7 @@ from .const import (
     MAX_EVSE_RETRIES,
     POLL_FALLBACK_RADIUS,
     POLL_RADIUS,
+    STALE_AFTER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,9 +101,24 @@ class DotNLCoordinator(DataUpdateCoordinator[ChargePoint]):
         entry.async_on_unload(lambda: self._store.unregister(self.charge_point_id))
         self._evses_known = CONF_EVSES in entry.data
         self._resolved: tuple[int, datetime | None] | None = None
+        self._last_success: datetime | None = None
         self._retries = 0
 
     async def _async_update_data(self) -> ChargePoint:
+        try:
+            charge_point = await self._async_fetch_charge_point()
+        except UpdateFailed as err:
+            if (
+                self._last_success is None
+                or dt_util.utcnow() - self._last_success >= STALE_AFTER
+            ):
+                raise
+            _LOGGER.debug("Keeping last known data of %s: %s", self.name, err)
+            return self.data
+        self._last_success = dt_util.utcnow()
+        return charge_point
+
+    async def _async_fetch_charge_point(self) -> ChargePoint:
         try:
             charge_point = await self.client.async_get_charge_point(
                 self.charge_point_id, self._latitude, self._longitude, POLL_RADIUS

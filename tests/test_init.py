@@ -1,7 +1,7 @@
 """Tests for setup and entities of the DOT-NL Chargers integration."""
 
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -16,6 +16,8 @@ from custom_components.dotnl_chargers.const import DOMAIN
 
 from .conftest import make_charge_point, make_evses
 from .test_config_flow import ENTRY_DATA
+
+COORDINATOR = "custom_components.dotnl_chargers.coordinator"
 
 
 async def _tick(hass: HomeAssistant) -> None:
@@ -51,21 +53,27 @@ async def test_entities(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     assert hass.states.get("sensor.schiekade_988_available_connectors").state == "0"
     assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
 
+    # A failed poll keeps the last known state...
     mock_client.async_get_charge_point.side_effect = DotNLError("boom")
     await _tick(hass)
-    assert (
-        hass.states.get("binary_sensor.schiekade_988_available").state == "unavailable"
-    )
-
-    # No longer published: retried once with the wider box, then unavailable.
+    assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
     mock_client.async_get_charge_point.side_effect = None
     mock_client.async_get_charge_point.return_value = None
     mock_client.async_get_charge_point.reset_mock()
     await _tick(hass)
     assert mock_client.async_get_charge_point.call_count == 2
-    assert (
-        hass.states.get("binary_sensor.schiekade_988_available").state == "unavailable"
-    )
+    assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
+
+    # ...until the data is too old.
+    with patch(f"{COORDINATOR}.STALE_AFTER", timedelta(0)):
+        await _tick(hass)
+    state = hass.states.get("binary_sensor.schiekade_988_available").state
+    assert state == "unavailable"
+
+    # And it recovers on the next successful poll.
+    mock_client.async_get_charge_point.return_value = make_charge_point(available=2)
+    await _tick(hass)
+    assert hass.states.get("binary_sensor.schiekade_988_available").state == "on"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
