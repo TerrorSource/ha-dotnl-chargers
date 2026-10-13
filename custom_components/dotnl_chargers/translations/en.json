@@ -57,9 +57,13 @@
     }
   },
   "entity": {
-    "binary_sensor": {
-      "available": {
-        "name": "Available",
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "available": "Available",
+          "occupied": "Occupied"
+        },
         "state_attributes": {
           "available": {
             "name": "Available connectors"
@@ -71,6 +75,10 @@
       },
       "socket": {
         "name": "Socket {number}",
+        "state": {
+          "available": "Available",
+          "occupied": "Occupied"
+        },
         "state_attributes": {
           "evse_id": {
             "name": "EVSE ID"
@@ -82,9 +90,7 @@
             "name": "Max power (kW)"
           }
         }
-      }
-    },
-    "sensor": {
+      },
       "available_connectors": {
         "name": "Available connectors",
         "state_attributes": {

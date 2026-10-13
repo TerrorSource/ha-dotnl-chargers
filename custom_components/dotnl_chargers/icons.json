@@ -1,14 +1,12 @@
 {
   "entity": {
-    "binary_sensor": {
-      "available": {
+    "sensor": {
+      "status": {
         "default": "mdi:ev-station"
       },
       "socket": {
         "default": "mdi:ev-plug-type2"
-      }
-    },
-    "sensor": {
+      },
       "available_connectors": {
         "default": "mdi:ev-plug-type2"
       },

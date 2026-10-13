@@ -15,12 +15,13 @@ blueprint:
   input:
     charger:
       name: Laadpaal
-      description: De binaire sensor "Beschikbaar" van de laadpaal.
+      description: De sensor "Status" van de laadpaal, of een van de sensoren "Aansluiting".
       selector:
         entity:
           filter:
             - integration: dotnl_chargers
-              domain: binary_sensor
+              domain: sensor
+              device_class: enum
     notify_device:
       name: Apparaat voor de melding
       description: Een telefoon of tablet met de Home Assistant Companion-app.
@@ -64,8 +65,8 @@ variables:
 triggers:
   - trigger: state
     entity_id: !input charger
-    from: "off"
-    to: "on"
+    from: occupied
+    to: available
 
 conditions:
   - condition: template

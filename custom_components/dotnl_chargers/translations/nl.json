@@ -57,9 +57,13 @@
     }
   },
   "entity": {
-    "binary_sensor": {
-      "available": {
-        "name": "Beschikbaar",
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "available": "Beschikbaar",
+          "occupied": "Bezet"
+        },
         "state_attributes": {
           "available": {
             "name": "Vrije aansluitingen"
@@ -71,6 +75,10 @@
       },
       "socket": {
         "name": "Aansluiting {number}",
+        "state": {
+          "available": "Beschikbaar",
+          "occupied": "Bezet"
+        },
         "state_attributes": {
           "evse_id": {
             "name": "EVSE-ID"
@@ -82,9 +90,7 @@
             "name": "Max. vermogen (kW)"
           }
         }
-      }
-    },
-    "sensor": {
+      },
       "available_connectors": {
         "name": "Vrije aansluitingen",
         "state_attributes": {

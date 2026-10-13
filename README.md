@@ -36,8 +36,8 @@ Repeat this for every charge point you want to follow.
 
 | Entity | Description |
 | --- | --- |
-| Available | On when at least one socket is free. |
-| Socket 1, Socket 2, … | On when that socket is free. |
+| Status | *Available* when at least one socket is free, otherwise *Occupied*. |
+| Socket 1, Socket 2, … | *Available* or *Occupied*, per socket. |
 | Available connectors | Number of free connectors. |
 | Total connectors | Number of connectors (diagnostic). |
 | Last updated | Last status change reported by the operator (diagnostic). |
@@ -60,15 +60,16 @@ may briefly show the previous situation.
 
 [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTerrorSource%2Fha-dotnl-chargers%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fdotnl_chargers%2Fnotify_when_available.yaml)
 
-Import the blueprint, create an automation from it and pick the **Available**
-sensor of the charge point and the phone to notify. Select a toggle helper as
+Import the blueprint, create an automation from it and pick the **Status**
+sensor of the charge point (or one **Socket** sensor) and the phone to notify. Select a toggle helper as
 well if you want just one notification: it is only sent while the toggle is
 on, and the toggle switches off afterwards.
 
 ## Automation examples
 
 The entity IDs below belong to a charge point named *Schiekade 988*; replace
-them with your own, and `notify.mobile_app_my_phone` with your phone.
+them with your own, and `notify.mobile_app_my_phone` with your phone. In
+automations the states are written in lower case: `available` and `occupied`.
 
 **1. When the number of free sockets changes**
 
@@ -93,29 +94,29 @@ actions:
 ```yaml
 triggers:
   - trigger: state
-    entity_id: binary_sensor.schiekade_988_available
-    from: ["on", "off"]
-    to: ["on", "off"]
+    entity_id: sensor.schiekade_988_status
+    from: [available, occupied]
+    to: [available, occupied]
 actions:
   - action: notify.mobile_app_my_phone
     data:
       title: Schiekade 988
       message: >-
-        {{ 'Available again.' if trigger.to_state.state == 'on'
+        {{ 'Available again.' if trigger.to_state.state == 'available'
            else 'All sockets are in use.' }}
 ```
 
-To be notified only when it becomes available again, use `from: "off"` and
-`to: "on"`.
+To be notified only when it becomes available again, use `from: occupied` and
+`to: available`.
 
 **3. When your favourite socket becomes free**
 
 ```yaml
 triggers:
   - trigger: state
-    entity_id: binary_sensor.schiekade_988_socket_1
-    from: "off"
-    to: "on"
+    entity_id: sensor.schiekade_988_socket_1
+    from: occupied
+    to: available
 actions:
   - action: notify.mobile_app_my_phone
     data:
@@ -146,14 +147,14 @@ conditions:
 actions:
   - variables:
       preferred:
-        - binary_sensor.schiekade_988_available
+        - sensor.schiekade_988_status
       alternatives:
-        - binary_sensor.schiekade_730_available
-        - binary_sensor.schiekade_522_available
+        - sensor.schiekade_730_status
+        - sensor.schiekade_522_status
       free: >-
-        {{ alternatives | select('is_state', 'on')
+        {{ alternatives | select('is_state', 'available')
            | map('device_attr', 'name') | list }}
-  - if: "{{ preferred | select('is_state', 'on') | list | count == 0 }}"
+  - if: "{{ preferred | select('is_state', 'available') | list | count == 0 }}"
     then:
       - action: notify.mobile_app_my_phone
         data:
@@ -174,10 +175,10 @@ free, and the toggle switches off again.
 triggers:
   - trigger: state
     entity_id:
-      - binary_sensor.schiekade_988_available
-      - binary_sensor.schiekade_730_available
-    from: "off"
-    to: "on"
+      - sensor.schiekade_988_status
+      - sensor.schiekade_730_status
+    from: occupied
+    to: available
 conditions:
   - condition: state
     entity_id: input_boolean.wait_for_charge_point
@@ -202,9 +203,9 @@ tap_action:
   action: toggle
 visibility:
   - condition: state
-    entity: binary_sensor.schiekade_988_available
-    state: "off"
+    entity: sensor.schiekade_988_status
+    state: occupied
   - condition: state
-    entity: binary_sensor.schiekade_730_available
-    state: "off"
+    entity: sensor.schiekade_730_status
+    state: occupied
 ```

@@ -37,8 +37,8 @@ Herhaal dit voor elke laadpaal die je wilt volgen.
 
 | Entiteit | Omschrijving |
 | --- | --- |
-| Beschikbaar | Aan zodra minstens één aansluiting vrij is. |
-| Aansluiting 1, Aansluiting 2, … | Aan als die aansluiting vrij is. |
+| Status | *Beschikbaar* zodra minstens één aansluiting vrij is, anders *Bezet*. |
+| Aansluiting 1, Aansluiting 2, … | *Beschikbaar* of *Bezet*, per aansluiting. |
 | Vrije aansluitingen | Aantal vrije aansluitingen. |
 | Totaal aansluitingen | Aantal aansluitingen (diagnostisch). |
 | Laatst bijgewerkt | Laatste statuswijziging die de exploitant meldde (diagnostisch). |
@@ -63,7 +63,8 @@ aansluiting kort de vorige situatie tonen.
 [![Blueprint importeren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FTerrorSource%2Fha-dotnl-chargers%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fdotnl_chargers%2Fmelding_bij_beschikbaar.yaml)
 
 Importeer de blueprint, maak er een automatisering van en kies de sensor
-**Beschikbaar** van de laadpaal en de telefoon die de melding krijgt. Kies er
+**Status** van de laadpaal (of één sensor **Aansluiting**) en de telefoon die
+de melding krijgt. Kies er
 een schakelaar-helper bij als je maar één melding wilt: die wordt alleen
 verstuurd als de schakelaar aan staat, en de schakelaar gaat daarna uit.
 
@@ -71,7 +72,8 @@ verstuurd als de schakelaar aan staat, en de schakelaar gaat daarna uit.
 
 De entiteit-ID's hieronder horen bij een laadpaal met de naam *Schiekade 988*;
 vervang ze door je eigen ID's, en `notify.mobile_app_mijn_telefoon` door je
-telefoon.
+telefoon. In automatiseringen schrijf je de statussen in het Engels en met
+kleine letters: `available` (beschikbaar) en `occupied` (bezet).
 
 **1. Als het aantal vrije aansluitingen verandert**
 
@@ -96,29 +98,29 @@ actions:
 ```yaml
 triggers:
   - trigger: state
-    entity_id: binary_sensor.schiekade_988_beschikbaar
-    from: ["on", "off"]
-    to: ["on", "off"]
+    entity_id: sensor.schiekade_988_status
+    from: [available, occupied]
+    to: [available, occupied]
 actions:
   - action: notify.mobile_app_mijn_telefoon
     data:
       title: Schiekade 988
       message: >-
-        {{ 'Weer beschikbaar.' if trigger.to_state.state == 'on'
+        {{ 'Weer beschikbaar.' if trigger.to_state.state == 'available'
            else 'Alle aansluitingen zijn bezet.' }}
 ```
 
 Wil je alleen een melding als hij weer beschikbaar komt, gebruik dan
-`from: "off"` en `to: "on"`.
+`from: occupied` en `to: available`.
 
 **3. Als je favoriete aansluiting vrijkomt**
 
 ```yaml
 triggers:
   - trigger: state
-    entity_id: binary_sensor.schiekade_988_aansluiting_1
-    from: "off"
-    to: "on"
+    entity_id: sensor.schiekade_988_aansluiting_1
+    from: occupied
+    to: available
 actions:
   - action: notify.mobile_app_mijn_telefoon
     data:
@@ -149,14 +151,14 @@ conditions:
 actions:
   - variables:
       voorkeur:
-        - binary_sensor.schiekade_988_beschikbaar
+        - sensor.schiekade_988_status
       alternatieven:
-        - binary_sensor.schiekade_730_beschikbaar
-        - binary_sensor.schiekade_522_beschikbaar
+        - sensor.schiekade_730_status
+        - sensor.schiekade_522_status
       vrij: >-
-        {{ alternatieven | select('is_state', 'on')
+        {{ alternatieven | select('is_state', 'available')
            | map('device_attr', 'name') | list }}
-  - if: "{{ voorkeur | select('is_state', 'on') | list | count == 0 }}"
+  - if: "{{ voorkeur | select('is_state', 'available') | list | count == 0 }}"
     then:
       - action: notify.mobile_app_mijn_telefoon
         data:
@@ -177,10 +179,10 @@ vrij is, en de schakelaar gaat weer uit.
 triggers:
   - trigger: state
     entity_id:
-      - binary_sensor.schiekade_988_beschikbaar
-      - binary_sensor.schiekade_730_beschikbaar
-    from: "off"
-    to: "on"
+      - sensor.schiekade_988_status
+      - sensor.schiekade_730_status
+    from: occupied
+    to: available
 conditions:
   - condition: state
     entity_id: input_boolean.wacht_op_laadpaal
@@ -205,9 +207,9 @@ tap_action:
   action: toggle
 visibility:
   - condition: state
-    entity: binary_sensor.schiekade_988_beschikbaar
-    state: "off"
+    entity: sensor.schiekade_988_status
+    state: occupied
   - condition: state
-    entity: binary_sensor.schiekade_730_beschikbaar
-    state: "off"
+    entity: sensor.schiekade_730_status
+    state: occupied
 ```

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -41,7 +42,7 @@ async def test_entities(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     assert available.state == "1"
     assert available.attributes["total"] == 2
     assert available.attributes["connectors"][0]["max_power_kw"] == 11.0
-    assert hass.states.get("binary_sensor.schiekade_988_available").state == "on"
+    assert hass.states.get("sensor.schiekade_988_status").state == "available"
     assert hass.states.get("sensor.schiekade_988_total_connectors").state == "2"
     assert (
         hass.states.get("sensor.schiekade_988_last_updated").state
@@ -51,29 +52,29 @@ async def test_entities(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     mock_client.async_get_charge_point.return_value = make_charge_point(available=0)
     await _tick(hass)
     assert hass.states.get("sensor.schiekade_988_available_connectors").state == "0"
-    assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
+    assert hass.states.get("sensor.schiekade_988_status").state == "occupied"
 
     # A failed poll keeps the last known state...
     mock_client.async_get_charge_point.side_effect = DotNLError("boom")
     await _tick(hass)
-    assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
+    assert hass.states.get("sensor.schiekade_988_status").state == "occupied"
     mock_client.async_get_charge_point.side_effect = None
     mock_client.async_get_charge_point.return_value = None
     mock_client.async_get_charge_point.reset_mock()
     await _tick(hass)
     assert mock_client.async_get_charge_point.call_count == 2
-    assert hass.states.get("binary_sensor.schiekade_988_available").state == "off"
+    assert hass.states.get("sensor.schiekade_988_status").state == "occupied"
 
     # ...until the data is too old.
     with patch(f"{COORDINATOR}.STALE_AFTER", timedelta(0)):
         await _tick(hass)
-    state = hass.states.get("binary_sensor.schiekade_988_available").state
+    state = hass.states.get("sensor.schiekade_988_status").state
     assert state == "unavailable"
 
     # And it recovers on the next successful poll.
     mock_client.async_get_charge_point.return_value = make_charge_point(available=2)
     await _tick(hass)
-    assert hass.states.get("binary_sensor.schiekade_988_available").state == "on"
+    assert hass.states.get("sensor.schiekade_988_status").state == "available"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
@@ -93,18 +94,17 @@ async def test_sockets(hass: HomeAssistant, mock_client: AsyncMock) -> None:
 
     def sockets() -> list[str]:
         return [
-            hass.states.get(f"binary_sensor.schiekade_988_socket_{n}").state
-            for n in (1, 2)
+            hass.states.get(f"sensor.schiekade_988_socket_{n}").state for n in (1, 2)
         ]
 
     # 1 of 2 free: the dataset tells which one, and the sockets are remembered.
-    assert sockets() == ["on", "off"]
+    assert sockets() == ["available", "occupied"]
     assert mock_client.async_get_evses.call_count == 1
     assert [evse["uid"] for evse in entry.data["evses"]] == [
         "EGL31-07-1",
         "EGL31-07-2",
     ]
-    state = hass.states.get("binary_sensor.schiekade_988_socket_1")
+    state = hass.states.get("sensor.schiekade_988_socket_1")
     assert state.attributes["evse_id"] == "NL*TNM*EGL31*1*1049*07*1"
 
     # Nothing changed: no new lookup.
@@ -114,10 +114,10 @@ async def test_sockets(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     # All free or none free needs no lookup either.
     mock_client.async_get_charge_point.return_value = make_charge_point(available=2)
     await _tick(hass)
-    assert sockets() == ["on", "on"]
+    assert sockets() == ["available", "available"]
     mock_client.async_get_charge_point.return_value = make_charge_point(available=0)
     await _tick(hass)
-    assert sockets() == ["off", "off"]
+    assert sockets() == ["occupied", "occupied"]
     assert mock_client.async_get_evses.call_count == 1
 
     # 1 of 2 again, but the dataset still shows the old situation: retried.
@@ -126,12 +126,12 @@ async def test_sockets(hass: HomeAssistant, mock_client: AsyncMock) -> None:
         entry.unique_id: make_evses(False, False)
     }
     await _tick(hass)
-    assert sockets() == ["off", "off"]
+    assert sockets() == ["occupied", "occupied"]
     mock_client.async_get_evses.return_value = {
         entry.unique_id: make_evses(False, True)
     }
     await _tick(hass)
-    assert sockets() == ["off", "on"]
+    assert sockets() == ["occupied", "available"]
     assert mock_client.async_get_evses.call_count == 3
 
     # A failing lookup keeps the last known sockets.
@@ -140,7 +140,7 @@ async def test_sockets(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     )
     mock_client.async_get_evses.side_effect = DotNLError("boom")
     await _tick(hass)
-    assert sockets() == ["off", "on"]
+    assert sockets() == ["occupied", "available"]
 
 
 async def test_sockets_restored(hass: HomeAssistant, mock_client: AsyncMock) -> None:
@@ -156,7 +156,7 @@ async def test_sockets_restored(hass: HomeAssistant, mock_client: AsyncMock) -> 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("binary_sensor.schiekade_988_socket_2").state == "on"
+    assert hass.states.get("sensor.schiekade_988_socket_2").state == "available"
     mock_client.async_get_evses.assert_not_called()
 
 
@@ -167,3 +167,22 @@ async def test_setup_retry(hass: HomeAssistant, mock_client: AsyncMock) -> None:
     entry.add_to_hass(hass)
     assert not await hass.config_entries.async_setup(entry.entry_id)
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_old_binary_sensors_are_removed(
+    hass: HomeAssistant, mock_client: AsyncMock
+) -> None:
+    """The binary sensors of earlier versions do not linger in the registry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Schiekade 988", unique_id="NL-TNM-231", data=ENTRY_DATA
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create(
+        "binary_sensor", DOMAIN, "NL-TNM-231_available", config_entry=entry
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert registry.async_get(old.entity_id) is None
+    assert hass.states.get("sensor.schiekade_988_status").state == "available"

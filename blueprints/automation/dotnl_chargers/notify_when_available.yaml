@@ -14,12 +14,13 @@ blueprint:
   input:
     charger:
       name: Charge point
-      description: The "Available" binary sensor of the charge point.
+      description: The "Status" sensor of the charge point, or one of its "Socket" sensors.
       selector:
         entity:
           filter:
             - integration: dotnl_chargers
-              domain: binary_sensor
+              domain: sensor
+              device_class: enum
     notify_device:
       name: Device to notify
       description: A phone or tablet running the Home Assistant Companion app.
@@ -63,8 +64,8 @@ variables:
 triggers:
   - trigger: state
     entity_id: !input charger
-    from: "off"
-    to: "on"
+    from: occupied
+    to: available
 
 conditions:
   - condition: template
