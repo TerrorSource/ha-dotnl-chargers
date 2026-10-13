@@ -6,12 +6,14 @@ import asyncio
 import codecs
 import json
 import math
+import random
 import re
 import zlib
 from collections.abc import AsyncIterator
 from contextlib import aclosing
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
+from http import HTTPStatus
 from typing import Any
 
 import aiohttp
@@ -21,6 +23,8 @@ from .const import (
     LOCATIONS_DUMP_URL,
     LOOKUP_TIMEOUT,
     MAX_LOOKUP_MATCHES,
+    RATE_LIMIT_MAX_WAIT,
+    RATE_LIMIT_RETRIES,
     REQUEST_TIMEOUT,
 )
 
@@ -298,6 +302,20 @@ def parse_feature(feature: dict[str, Any]) -> ChargePoint:
         raise DotNLError(f"Unexpected charge point data: {err!r}") from err
 
 
+def _retry_delay(headers: Any, attempt: int) -> float:
+    """Return how long to wait after a 429, in seconds.
+
+    DOT-NL sends the exact wait as "X-Retry-In: 71.46ms". Some jitter keeps
+    clients that were refused together from retrying together.
+    """
+    delay = 0.25 * (attempt + 1)
+    if match := re.fullmatch(r"([\d.]+)(ms|s)", headers.get("X-Retry-In", "")):
+        delay = float(match[1]) / (1000 if match[2] == "ms" else 1)
+    elif (retry_after := headers.get("Retry-After", "")).isdigit():
+        delay = float(retry_after)
+    return min(delay, RATE_LIMIT_MAX_WAIT) + random.uniform(0.05, 0.5) * (attempt + 1)
+
+
 class DotNLClient:
     """Minimal async client for the DOT-NL GeoJSON API."""
 
@@ -310,12 +328,18 @@ class DotNLClient:
     ) -> list[ChargePoint]:
         """Return the charge points within a square around a point."""
         bbox = bounding_box(latitude, longitude, radius)
+        params = {"bbox": ",".join(f"{value:.6f}" for value in bbox)}
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT.total_seconds()):
-                response = await self._session.get(
-                    API_URL,
-                    params={"bbox": ",".join(f"{value:.6f}" for value in bbox)},
-                )
+                for attempt in range(RATE_LIMIT_RETRIES + 1):
+                    response = await self._session.get(API_URL, params=params)
+                    if (
+                        response.status != HTTPStatus.TOO_MANY_REQUESTS
+                        or attempt == RATE_LIMIT_RETRIES
+                    ):
+                        break
+                    response.release()
+                    await asyncio.sleep(_retry_delay(response.headers, attempt))
                 response.raise_for_status()
                 data = await response.json(content_type=None)
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:

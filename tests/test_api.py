@@ -2,12 +2,17 @@
 
 import gzip
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
 
 from custom_components.dotnl_chargers.api import (
+    DotNLClient,
+    DotNLError,
     _iter_json_array,
     _match_location,
+    _retry_delay,
     bounding_box,
     normalize_id,
     parse_evses,
@@ -115,3 +120,39 @@ def test_parse_evses() -> None:
         ("X*2", False),
     ]
     assert evses[0].max_power_kw == 11.0
+
+
+def _response(status: int, headers: dict[str, str] | None = None) -> MagicMock:
+    response = MagicMock(status=status, headers=headers or {})
+    response.json = AsyncMock(
+        return_value={"type": "FeatureCollection", "features": []}
+    )
+    if status >= 400:
+        response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+            MagicMock(), (), status=status
+        )
+    return response
+
+
+async def test_rate_limit_is_retried() -> None:
+    """A 429 is retried after the wait DOT-NL asks for."""
+    busy = _response(429, {"Retry-After": "1", "X-Retry-In": "71.462116ms"})
+    session = MagicMock()
+    session.get = AsyncMock(side_effect=[busy, busy, _response(200)])
+    with patch("asyncio.sleep", AsyncMock()) as sleep:
+        assert await DotNLClient(session).async_get_nearby(52.0, 5.0, 25) == []
+    assert session.get.call_count == 3
+    assert all(0.07 < call.args[0] < 1.1 for call in sleep.call_args_list)
+
+    session.get = AsyncMock(return_value=busy)
+    with patch("asyncio.sleep", AsyncMock()), pytest.raises(DotNLError):
+        await DotNLClient(session).async_get_nearby(52.0, 5.0, 25)
+    assert session.get.call_count == 5
+
+
+def test_retry_delay() -> None:
+    """The wait comes from X-Retry-In, then Retry-After, and is capped."""
+    assert 0.07 < _retry_delay({"X-Retry-In": "71.462116ms"}, 0) < 0.6
+    assert 1.0 < _retry_delay({"Retry-After": "1"}, 0) < 1.6
+    assert 5.0 < _retry_delay({"Retry-After": "120"}, 0) < 5.6
+    assert 0.25 < _retry_delay({}, 0) < 0.8

@@ -42,3 +42,8 @@ MAX_EVSE_RETRIES = 5
 # A failed poll keeps the last known data this long before entities become
 # unavailable; DOT-NL occasionally fails a single request.
 STALE_AFTER = timedelta(minutes=10)
+
+# DOT-NL limits the number of requests per second across all its users and
+# answers 429 with the few milliseconds to wait when it is busy.
+RATE_LIMIT_RETRIES = 4
+RATE_LIMIT_MAX_WAIT = 5.0
